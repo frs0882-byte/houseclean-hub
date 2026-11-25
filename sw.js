@@ -1,5 +1,5 @@
 // Service Worker for HouseClean Hub & Web Share Target
-const CACHE_NAME = 'houseclean-hub-v1';
+const CACHE_NAME = 'houseclean-hub-v2';
 const SHARED_CACHE_NAME = 'shared-pdf-cache';
 
 self.addEventListener('install', event => {

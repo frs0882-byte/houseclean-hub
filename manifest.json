@@ -1,0 +1,38 @@
+{
+  "name": "HouseClean Hub | ハウスクリーニング業務・工程管理",
+  "short_name": "HouseClean",
+  "description": "原状回復・ハウスクリーニング・クロス工事 工程管理＆下請け発注書システム",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "share_target": {
+    "action": "./?shared=1",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "file",
+          "accept": ["application/pdf", ".pdf"]
+        }
+      ]
+    }
+  }
+}

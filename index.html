@@ -329,8 +329,9 @@
       </div>
 
       <!-- LINE連携ガイドボタン -->
-      <button type="button" onclick="openLineGuideModal()" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 rounded-xl text-xs font-bold border border-emerald-200 dark:border-emerald-800 transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0" title="LINEからPDFを登録する方法">
-        <span class="text-sm">💬</span>
+      <button type="button" onclick="openLineGuideModal()" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 rounded-xl text-xs font-bold border border-emerald-200 dark:border-emerald-800 transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0 relative" title="LINE連携・クラウド同期設定">
+        <span id="header-cloud-sync-badge" class="w-2 h-2 rounded-full bg-slate-300"></span>
+        <span class="text-sm">🤖</span>
         <span class="hidden sm:inline">LINE連携</span>
       </button>
 
@@ -2259,6 +2260,9 @@ function loadState() {
 function saveState() {
   localStorage.setItem('houseclean_projects', JSON.stringify(state.projects));
   saveContractors();
+  if (typeof scheduleCloudPush === 'function') {
+    scheduleCloudPush();
+  }
 }
 
 function safeCreateIcons() {
@@ -2601,7 +2605,7 @@ function renderJobs() {
           </td>
           <!-- 案件名 & 住所 -->
           <td class="py-3 px-3">
-            <div class="font-bold text-slate-900 text-sm line-clamp-1">${escapeHtml(p.name)}</div>
+            <div class="font-bold text-slate-900 text-sm line-clamp-1 flex items-center gap-1.5">${p.source === 'line-bot' ? '<span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">🤖 LINE自動</span>' : ''}<span class="truncate">${escapeHtml(p.name)}</span></div>
             <div class="text-[11px] text-slate-500 truncate mt-0.5">${escapeHtml(p.address)}</div>
           </td>
           <!-- 全タスク表示（横並びでゆったり表示！未完了のみカラー） -->
@@ -5026,6 +5030,9 @@ function saveProjectDetailChanges() {
 // 案件削除
 function handleDeleteProject() {
   if (!confirm('この案件を完全に削除してもよろしいですか？')) return;
+  if (typeof trackDeletedProjectId === 'function' && state.selectedProjectId) {
+    trackDeletedProjectId(state.selectedProjectId);
+  }
   state.projects = state.projects.filter(x => x.id !== state.selectedProjectId);
   saveState();
   closeModal('modal-project-detail');
@@ -9057,6 +9064,335 @@ function closeLineGuideModal() {
   }
 }
 
+
+// ==================== クラウド同期 & LINE Bot受信エンジン ====================
+const CLOUD_SYNC_CONFIG_KEY = 'houseclean_cloud_sync_config';
+const DELETED_IDS_KEY = 'houseclean_deleted_project_ids';
+let cloudLineLogs = [];
+let cloudLastUpdatedAt = null;
+let cloudPushTimer = null;
+let isSyncingNow = false;
+
+function getCloudSyncConfig() {
+  try {
+    const saved = localStorage.getItem(CLOUD_SYNC_CONFIG_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.apiBaseUrl) return parsed;
+    }
+  } catch (e) {}
+
+  // Vercel上でホストされている場合は自身のオリジンをデフォルトAPI先として自動認識
+  const host = window.location.hostname || '';
+  const isVercel = host.includes('vercel.app') || host.includes('localhost');
+  return {
+    apiBaseUrl: isVercel ? window.location.origin : '',
+    syncPin: '',
+    enabled: isVercel
+  };
+}
+
+function saveCloudSyncConfig(cfg) {
+  localStorage.setItem(CLOUD_SYNC_CONFIG_KEY, JSON.stringify(cfg));
+  updateCloudSyncBadgeUI();
+}
+
+function getDeletedProjectIds() {
+  try {
+    return JSON.parse(localStorage.getItem(DELETED_IDS_KEY) || '[]');
+  } catch (e) { return []; }
+}
+
+function trackDeletedProjectId(id) {
+  if (!id) return;
+  const list = getDeletedProjectIds();
+  if (!list.includes(id)) {
+    list.push(id);
+    localStorage.setItem(DELETED_IDS_KEY, JSON.stringify(list.slice(-200)));
+  }
+}
+
+function scheduleCloudPush() {
+  const cfg = getCloudSyncConfig();
+  if (!cfg.enabled || !cfg.apiBaseUrl) return;
+  if (cloudPushTimer) clearTimeout(cloudPushTimer);
+  cloudPushTimer = setTimeout(() => {
+    pushStateToCloud({ silent: true });
+  }, 800);
+}
+
+function updateCloudSyncBadgeUI() {
+  const cfg = getCloudSyncConfig();
+  const badge = document.getElementById('header-cloud-sync-badge');
+  const modalStatus = document.getElementById('cloud-sync-status-badge');
+  
+  if (badge) {
+    if (cfg.enabled && cfg.apiBaseUrl) {
+      badge.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+      badge.title = 'クラウド・LINE Bot自動同期中';
+    } else {
+      badge.className = 'w-2 h-2 rounded-full bg-slate-300';
+      badge.title = 'LINE Bot自動同期 未接続';
+    }
+  }
+  if (modalStatus) {
+    if (cfg.enabled && cfg.apiBaseUrl) {
+      modalStatus.innerHTML = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>🟢 クラウド同期中 (${escapeHtml(cloudLastUpdatedAt ? cloudLastUpdatedAt.slice(11, 16) : '接続済')})</span>`;
+    } else {
+      modalStatus.innerHTML = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">⚪ クラウド同期 未設定</span>`;
+    }
+  }
+}
+
+async function pullFromCloud(options = { silent: true, pushAfterPull: false }) {
+  const cfg = getCloudSyncConfig();
+  if (!cfg.enabled || !cfg.apiBaseUrl || isSyncingNow) return null;
+
+  isSyncingNow = true;
+  try {
+    const baseUrl = cfg.apiBaseUrl.replace(/\/$/, '');
+    const headers = { 'Accept': 'application/json' };
+    if (cfg.syncPin) headers['X-Sync-Pin'] = cfg.syncPin;
+
+    const resp = await fetch(`${baseUrl}/api/sync`, { method: 'GET', headers });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (!data.ok || !data.state) throw new Error(data.error || 'Invalid cloud response');
+
+    const cloud = data.state;
+    cloudLastUpdatedAt = cloud.updatedAt || new Date().toISOString();
+    cloudLineLogs = Array.isArray(cloud.lineLogs) ? cloud.lineLogs : [];
+
+    const deletedSet = new Set([
+      ...getDeletedProjectIds(),
+      ...(cloud.deletedProjectIds || [])
+    ]);
+    localStorage.setItem(DELETED_IDS_KEY, JSON.stringify(Array.from(deletedSet).slice(-200)));
+
+    let newLineProjectsAdded = 0;
+    const localIds = new Set(state.projects.map(p => p.id));
+
+    // クラウドにある新着案件（特にLINE Bot経由）を取り込む
+    const cloudProjects = Array.isArray(cloud.projects) ? cloud.projects : [];
+    const addedNames = [];
+
+    cloudProjects.forEach(cp => {
+      if (!cp || !cp.id || deletedSet.has(cp.id)) return;
+      if (!localIds.has(cp.id)) {
+        ensureProjectWorkItems(cp);
+        ensureProjectAssignments(cp);
+        state.projects.unshift(cp);
+        localIds.add(cp.id);
+        newLineProjectsAdded++;
+        addedNames.push(cp.name);
+      } else {
+        // 既存案件の場合、クラウド側が新しいタイムスタンプならマージ検討
+        const idx = state.projects.findIndex(lp => lp.id === cp.id);
+        if (idx >= 0) {
+          const lp = state.projects[idx];
+          if (cp.updatedAt && (!lp.updatedAt || cp.updatedAt > lp.updatedAt)) {
+            state.projects[idx] = cp;
+            ensureProjectWorkItems(state.projects[idx]);
+            ensureProjectAssignments(state.projects[idx]);
+          }
+        }
+      }
+    });
+
+    // 削除された案件をローカルからも除去
+    state.projects = state.projects.filter(p => !deletedSet.has(p.id));
+
+    // 業者マスターや発注書設定の同期（クラウド側に設定がありローカルが初期状態等の場合）
+    if (cloud.contractors && typeof cloud.contractors === 'object' && Array.isArray(cloud.contractors.cloth)) {
+      if (!localStorage.getItem('houseclean_contractors_edited')) {
+        state.contractors = cloud.contractors;
+        localStorage.setItem('houseclean_contractors', JSON.stringify(state.contractors));
+      }
+    }
+    if (cloud.orderSheetConfig && typeof cloud.orderSheetConfig === 'object') {
+      if (!localStorage.getItem('houseclean_order_sheet_config')) {
+        localStorage.setItem('houseclean_order_sheet_config', JSON.stringify(cloud.orderSheetConfig));
+      }
+    }
+
+    // ローカルストレージ保存（無限ループ防止のため直接保存）
+    localStorage.setItem('houseclean_projects', JSON.stringify(state.projects));
+
+    if (newLineProjectsAdded > 0) {
+      renderAll();
+      showToast(`📩 クラウド/LINEから ${newLineProjectsAdded}件の新着案件（${addedNames[0]}等）を受信しました！`, 'success');
+    } else if (!options.silent) {
+      renderAll();
+      showToast(`✅ クラウドと同期しました（全${state.projects.length}件）`, 'success');
+    }
+
+    if (options.pushAfterPull) {
+      // ローカルにあってクラウドにない案件があればアップロード
+      const cloudIdSet = new Set(cloudProjects.map(p => p.id));
+      const hasLocalOnly = state.projects.some(p => !cloudIdSet.has(p.id));
+      if (hasLocalOnly || cloudProjects.length === 0) {
+        await pushStateToCloud({ silent: true });
+      }
+    }
+
+    updateCloudSyncBadgeUI();
+    renderLineBotLogsInModal();
+    return data;
+  } catch (err) {
+    console.warn('Cloud pull warning:', err);
+    if (!options.silent) {
+      showToast(`⚠️ クラウド同期エラー: ${err.message}`, 'error');
+    }
+    updateCloudSyncBadgeUI();
+    return null;
+  } finally {
+    isSyncingNow = false;
+  }
+}
+
+async function pushStateToCloud(options = { silent: true }) {
+  const cfg = getCloudSyncConfig();
+  if (!cfg.enabled || !cfg.apiBaseUrl) return null;
+
+  try {
+    const baseUrl = cfg.apiBaseUrl.replace(/\/$/, '');
+    const headers = { 'Content-Type': 'application/json' };
+    if (cfg.syncPin) headers['X-Sync-Pin'] = cfg.syncPin;
+
+    let orderSheetCfg = null;
+    try {
+      const savedOs = localStorage.getItem('houseclean_order_sheet_config');
+      if (savedOs) orderSheetCfg = JSON.parse(savedOs);
+    } catch(e) {}
+
+    const payload = {
+      projects: state.projects,
+      deletedProjectIds: getDeletedProjectIds(),
+      contractors: state.contractors,
+      orderSheetConfig: orderSheetCfg
+    };
+
+    const resp = await fetch(`${baseUrl}/api/sync`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (data.ok) {
+      cloudLastUpdatedAt = data.updatedAt || new Date().toISOString();
+      updateCloudSyncBadgeUI();
+      if (!options.silent) {
+        showToast('☁️ クラウドへ最新データを保存しました！', 'success');
+      }
+    }
+    return data;
+  } catch (err) {
+    console.warn('Cloud push error:', err);
+    if (!options.silent) {
+      showToast(`⚠️ クラウド保存エラー: ${err.message}`, 'error');
+    }
+    return null;
+  }
+}
+
+function renderLineBotLogsInModal() {
+  const container = document.getElementById('line-bot-logs-list');
+  if (!container) return;
+  if (!cloudLineLogs || cloudLineLogs.length === 0) {
+    container.innerHTML = '<div class="text-[11px] text-slate-400 text-center py-3">LINE Botからの受信履歴はまだありません</div>';
+    return;
+  }
+  container.innerHTML = cloudLineLogs.slice(0, 10).map(log => `
+    <div class="flex items-center justify-between bg-white dark:bg-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[11px]">
+      <div class="min-w-0">
+        <div class="font-bold text-slate-800 dark:text-slate-200 truncate">🏢 ${escapeHtml(log.projectName)}</div>
+        <div class="text-[10px] text-slate-500 truncate">📄 ${escapeHtml(log.fileName)} ・ ${log.itemsCount || 0}明細</div>
+      </div>
+      <div class="text-right shrink-0 ml-2">
+        <div class="text-[10px] font-bold text-emerald-600">納期 ${escapeHtml(log.dueDate || '-')}</div>
+        <div class="text-[9px] text-slate-400">${escapeHtml((log.timestamp || '').slice(5, 16).replace('T', ' '))}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function saveAndTestCloudSyncUI() {
+  const urlInput = document.getElementById('inp-cloud-api-url');
+  const pinInput = document.getElementById('inp-cloud-sync-pin');
+  const apiUrl = (urlInput ? urlInput.value : '').trim().replace(/\/$/, '');
+  const syncPin = (pinInput ? pinInput.value : '').trim();
+
+  if (!apiUrl) {
+    saveCloudSyncConfig({ apiBaseUrl: '', syncPin: '', enabled: false });
+    showToast('クラウド同期をオフにしました', 'info');
+    return;
+  }
+
+  saveCloudSyncConfig({ apiBaseUrl: apiUrl, syncPin: syncPin, enabled: true });
+  showToast('🔄 クラウドサーバーへ接続テスト中...', 'info');
+  const res = await pullFromCloud({ silent: false, pushAfterPull: true });
+  if (res && res.ok) {
+    renderLineBotLogsInModal();
+  }
+}
+
+// LINEガイドモーダル開く時に設定値をセット
+const origOpenLineGuideModal = typeof openLineGuideModal === 'function' ? openLineGuideModal : null;
+window.openLineGuideModal = function() {
+  const cfg = getCloudSyncConfig();
+  const urlInput = document.getElementById('inp-cloud-api-url');
+  const pinInput = document.getElementById('inp-cloud-sync-pin');
+  if (urlInput) urlInput.value = cfg.apiBaseUrl || '';
+  if (pinInput) pinInput.value = cfg.syncPin || '';
+  updateCloudSyncBadgeUI();
+  renderLineBotLogsInModal();
+
+  const modal = document.getElementById('modal-line-guide');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+};
+
+// 起動時のURLパラメータチェック & 初回同期 & ポーリング
+window.addEventListener('DOMContentLoaded', () => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const paramApi = params.get('api') || params.get('sync_url');
+    if (paramApi) {
+      const cleanUrl = paramApi.trim().replace(/\/$/, '');
+      saveCloudSyncConfig({
+        apiBaseUrl: cleanUrl,
+        syncPin: params.get('pin') || '',
+        enabled: true
+      });
+      history.replaceState(null, '', window.location.pathname);
+      showToast('🔗 クラウド同期URLを自動設定しました！', 'success');
+    }
+  } catch (e) {}
+
+  updateCloudSyncBadgeUI();
+  setTimeout(() => {
+    pullFromCloud({ silent: true, pushAfterPull: true });
+  }, 1000);
+
+  // 30秒ごとにバックグラウンドでLINE受信をチェック
+  setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      pullFromCloud({ silent: true, pushAfterPull: false });
+    }
+  }, 30000);
+
+  // タブがアクティブに戻った際も即座に同期
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      pullFromCloud({ silent: true, pushAfterPull: false });
+    }
+  });
+});
+
 </script>
   <!-- ==================== 工事依頼書PDF 読み込み確認プレビューモーダル ==================== -->
   <div id="modal-pdf-import-preview" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-2 sm:p-4 overflow-hidden">
@@ -9463,17 +9799,17 @@ function closeLineGuideModal() {
   </div>
 
 
-  <!-- LINE連携・共有ガイドモーダル -->
+  <!-- LINE連携・LINE Bot・クラウド同期モーダル -->
   <div id="modal-line-guide" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 hidden items-center justify-center p-3 sm:p-4 overflow-y-auto">
-    <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 my-auto">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 my-auto max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
         <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center text-lg font-bold shadow-xs">
-            💬
+          <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg font-bold shadow-xs">
+            🤖
           </div>
           <div>
-            <h3 class="text-base font-black text-slate-900 dark:text-white">LINEからPDFを登録する方法</h3>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">元請けから届いた工事依頼書をスマホで即登録</p>
+            <h3 class="text-base font-black text-slate-900 dark:text-white">LINE Bot 自動登録 & クラウド同期</h3>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">LINEでPDFを転送するだけで案件ボックスへ自動登録</p>
           </div>
         </div>
         <button type="button" onclick="closeLineGuideModal()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition">
@@ -9481,64 +9817,76 @@ function closeLineGuideModal() {
         </button>
       </div>
 
-      <!-- ガイドコンテンツ -->
-      <div class="space-y-4 text-xs">
-        <!-- 💡 一番確実・簡単 (所要時間3秒) -->
-        <div class="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 space-y-2">
-          <div class="flex items-center gap-1.5 font-black text-emerald-800 dark:text-emerald-300 text-sm">
-            <span>✨</span>
-            <span>方法1: 一番カンタン（iPhone・Android共通）</span>
+      <!-- クラウド同期ステータス & 設定 -->
+      <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-3 text-xs">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="font-black text-slate-800 dark:text-slate-100 text-sm flex items-center gap-1.5">
+            <span>☁️</span>
+            <span>クラウド同期・LINE受信サーバー設定</span>
           </div>
-          <ol class="list-decimal list-inside space-y-1 text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
-            <li>LINEのトークで届いた <strong class="text-slate-900 dark:text-white">PDFをタップして開く</strong></li>
-            <li>右上の共有ボタンから <strong class="text-slate-900 dark:text-white">「保存」</strong>（iPhoneは「ファイルに保存」）</li>
-            <li>このツールの <strong class="text-indigo-600 dark:text-indigo-400 font-bold">「PDFファイルを選択」</strong> を押し、先頭のPDFを選ぶだけ！</li>
-          </ol>
-          <p class="text-[10px] text-emerald-700 dark:text-emerald-400">※一度ダウンロードすれば、わずか数タップで自動解析画面が開きます。</p>
-        </div>
-
-        <!-- 📲 PWAアプリ化 & 直接共有 (Web Share Target) -->
-        <div class="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 space-y-2">
-          <div class="flex items-center gap-1.5 font-black text-indigo-800 dark:text-indigo-300 text-sm">
-            <span>📲</span>
-            <span>方法2: 「ホーム画面に追加」して直接共有 (Android対応)</span>
-          </div>
-          <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
-            このツールをブラウザメニューから <strong class="text-slate-900 dark:text-white">「ホーム画面に追加（アプリをインストール）」</strong> すると、ネイティブアプリのように使えます。
-          </p>
-          <div class="bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-indigo-100 dark:border-indigo-900/50 space-y-1">
-            <div class="font-bold text-slate-800 dark:text-slate-200 text-[11px]">Androidの場合:</div>
-            <p class="text-slate-600 dark:text-slate-400 text-[10.5px]">
-              LINEでPDFを開き「他のアプリで共有」を押すと、共有先候補に <strong class="text-indigo-600 dark:text-indigo-400">「HouseClean Hub」</strong> が表示され、ワンタップで本アプリが起動して直接登録できます！
-            </p>
+          <div id="cloud-sync-status-badge">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">⚪ 未設定</span>
           </div>
         </div>
 
-        <!-- 🤖 LINE Bot 自動転送連携について -->
-        <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5 font-black text-slate-800 dark:text-slate-200">
-              <span>🤖</span>
-              <span>LINE Bot転送連携（自動登録）</span>
-            </div>
-            <span class="text-[10px] bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-full font-bold">開発連携可能</span>
+        <div class="space-y-2">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">連携サーバーURL (VercelサーバーのURL)</label>
+            <input type="url" id="inp-cloud-api-url" placeholder="例: https://houseclean-hub.vercel.app" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
           </div>
-          <p class="text-slate-600 dark:text-slate-400 leading-relaxed text-[11px]">
-            専用のLINE公式アカウントに元請けからのPDFを <strong class="text-slate-800 dark:text-slate-200">転送するだけ</strong> で、裏側で自動解析され案件ボックスに即登録されるシステムです。
-          </p>
-          <div class="text-[10px] text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200 dark:border-slate-800">
-            ※LINE Developersのチャネル設定とWebhookクラウド連携を行うことで有効化できます。ご希望の際はお申し付けください。
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">セキュリティPIN合言葉（設定した場合のみ入力・空欄可）</label>
+            <input type="password" id="inp-cloud-sync-pin" placeholder="未設定の場合は空欄でOK" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 pt-1">
+          <button type="button" onclick="saveAndTestCloudSyncUI()" class="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-xs transition active:scale-95 cursor-pointer flex items-center justify-center gap-1">
+            <span>💾</span>
+            <span>保存して接続・同期</span>
+          </button>
+          <button type="button" onclick="pullFromCloud({ silent: false, pushAfterPull: false })" class="py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs transition active:scale-95 cursor-pointer flex items-center gap-1">
+            <span>🔄</span>
+            <span>今すぐ取得</span>
+          </button>
+          <button type="button" onclick="pushStateToCloud({ silent: false })" class="py-2 px-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold text-xs shadow-xs transition active:scale-95 cursor-pointer flex items-center gap-1" title="現在のローカルデータをクラウドへアップロード">
+            <span>⬆️</span>
+            <span>手動送信</span>
+          </button>
+        </div>
+
+        <!-- LINE Bot受信ログ -->
+        <div class="pt-2 border-t border-slate-200 dark:border-slate-700">
+          <div class="text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
+            <span>📩 LINE Botからの自動受信履歴</span>
+            <span class="text-[10px] text-slate-400">30秒ごとに自動チェック</span>
+          </div>
+          <div id="line-bot-logs-list" class="space-y-1.5 max-h-36 overflow-y-auto">
+            <div class="text-[11px] text-slate-400 text-center py-2">まだ受信履歴はありません</div>
           </div>
         </div>
       </div>
 
-      <div class="pt-2">
+      <!-- 従来のPWA / 共有手順ガイド -->
+      <div class="space-y-2.5 text-xs">
+        <div class="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 space-y-1.5">
+          <div class="font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+            <span>📱</span>
+            <span>手動共有: スマホのLINEから登録する方法（共有機能）</span>
+          </div>
+          <ol class="list-decimal list-inside space-y-0.5 text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed">
+            <li><strong class="text-slate-900 dark:text-white">Android</strong>: 本アプリをホーム画面に追加後、LINEの「他のアプリで共有」➔「HouseClean」を選ぶだけ</li>
+            <li><strong class="text-slate-900 dark:text-white">iPhone</strong>: LINEでPDFを開き共有から「ファイルに保存」➔ 本ツールの「PDFファイルを選択」</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="pt-1">
         <button type="button" onclick="closeLineGuideModal()" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer">
           閉じる
         </button>
       </div>
     </div>
   </div>
-
 </body>
 </html>

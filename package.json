@@ -1,0 +1,8 @@
+{
+  "name": "houseclean-hub",
+  "version": "2.0.0",
+  "description": "HouseClean Hub - 原状回復・清掃業務工程管理 & LINE Bot連携バックエンド",
+  "dependencies": {
+    "pdfjs-dist": "3.11.174"
+  }
+}

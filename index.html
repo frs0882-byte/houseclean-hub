@@ -67,6 +67,12 @@
     * {
       -webkit-tap-highlight-color: transparent;
     }
+    /* スマホでのdate入力欄の強制最小幅による枠はみ出し防止 */
+    input[type="date"] {
+      min-width: 0 !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+    }
     /* カレンダーセル最小高 */
     .calendar-cell {
       min-height: 90px;
@@ -591,18 +597,18 @@
       <!-- 業者カテゴリ切り替えタブ -->
       <div class="bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <!-- カテゴリスイッチ (改行を防ぎスマホでも1行でスッキリ収まるタブ) -->
-        <div class="flex items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 w-full sm:w-auto">
+        <div class="grid grid-cols-2 sm:inline-flex bg-slate-200/80 dark:bg-slate-900 p-1 rounded-xl border border-slate-300 dark:border-slate-700 w-full sm:w-auto gap-1">
           <button onclick="switchContractorCategory('cloth')" id="cat-btn-cloth" 
-            class="flex-1 sm:flex-none px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-400 shadow-sm whitespace-nowrap">
+            class="px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-black flex items-center justify-center gap-1.5 transition-all bg-amber-500 text-white shadow-md ring-2 ring-amber-300 dark:ring-amber-400 whitespace-nowrap">
             <span class="text-sm">🧱</span>
             <span>クロス業者</span>
-            <span id="badge-cloth-count" class="bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full font-bold">3社</span>
+            <span id="badge-cloth-count" class="bg-white/25 text-white text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full font-bold">3社</span>
           </button>
           <button onclick="switchContractorCategory('cleaning')" id="cat-btn-cleaning" 
-            class="flex-1 sm:flex-none px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white whitespace-nowrap">
+            class="px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-800 opacity-75 whitespace-nowrap">
             <span class="text-sm">🧹</span>
             <span>クリーニング業者</span>
-            <span id="badge-cleaning-count" class="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full font-bold">3社</span>
+            <span id="badge-cleaning-count" class="bg-slate-300/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full font-bold">3社</span>
           </button>
         </div>
 
@@ -924,7 +930,7 @@
       </div>
 
       <!-- モーダルコンテンツ -->
-      <div class="p-3.5 sm:p-5 space-y-4 sm:space-y-5 max-h-[82vh] overflow-y-auto">
+      <div class="p-3 sm:p-5 space-y-4 sm:space-y-5 max-h-[82vh] overflow-y-auto overflow-x-hidden">
         <!-- 未完了マーク状況バー (スマホで縦潰れしないよう flex-wrap + レスポンシブ配置) -->
         <div class="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <span class="text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0">未完了マーク（残タスク）:</span>
@@ -949,9 +955,9 @@
           <div class="pt-2 flex flex-col sm:flex-row gap-2">
             <div class="flex-1 flex gap-2">
               <input type="text" id="inp-new-task-name" placeholder="新しいタスク名 (例: 駐車場確認)" 
-                class="flex-1 text-xs px-3 py-1.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                class="flex-1 min-w-0 text-xs px-2.5 sm:px-3 py-1.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
               <input type="text" id="inp-new-task-short" placeholder="省略語(2〜4字)" maxlength="6"
-                class="w-28 text-xs px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-bold" title="カレンダーや案件一覧に表示される省略語">
+                class="w-24 sm:w-28 shrink-0 text-xs px-2 py-1.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-bold" title="カレンダーや案件一覧に表示される省略語">
             </div>
             <button type="button" onclick="addNewChecklistItem()" class="bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold px-3.5 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 transition whitespace-nowrap shrink-0 flex items-center justify-center gap-1 active:scale-95">
               ＋ タスク追加
@@ -993,16 +999,16 @@
                 <span class="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-100 dark:bg-indigo-950 px-2 py-0.5 rounded-full">タップで担当決定</span>
               </div>
               
-              <div class="flex items-center gap-2 flex-wrap justify-between sm:justify-end">
-                <!-- クロス / クリーニング 切り替えタブ -->
-                <div class="inline-flex p-0.5 bg-slate-200/90 dark:bg-slate-800 rounded-lg text-xs shrink-0 select-none">
+              <div class="w-full sm:w-auto">
+                <!-- クロス / クリーニング 切り替えタブ (選択中がパッと分かるハイコントラスト設計) -->
+                <div class="grid grid-cols-2 w-full sm:w-auto p-1 bg-slate-200/90 dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-700 gap-1.5 select-none">
                   <button type="button" id="timeline-tab-cloth" onclick="switchDetailTimelineCategory('cloth')"
-                    class="px-2.5 py-1 rounded-md font-bold transition text-xs bg-white dark:bg-slate-700 text-amber-900 dark:text-amber-200 shadow-2xs">
-                    🧱 クロス業者
+                    class="px-2.5 py-1.5 rounded-lg font-black transition text-xs bg-amber-500 text-white shadow-md ring-2 ring-amber-300 dark:ring-amber-400 flex items-center justify-center gap-1 whitespace-nowrap">
+                    <span>✓</span><span>🧱</span><span>クロス業者</span>
                   </button>
                   <button type="button" id="timeline-tab-cleaning" onclick="switchDetailTimelineCategory('cleaning')"
-                    class="px-2.5 py-1 rounded-md font-bold transition text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
-                    🧹 クリーニング業者
+                    class="px-2.5 py-1.5 rounded-lg font-semibold transition text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-300/50 dark:hover:bg-slate-800 flex items-center justify-center gap-1 opacity-75 whitespace-nowrap">
+                    <span>🧹</span><span>クリーニング業者</span>
                   </button>
                 </div>
               </div>
@@ -1034,9 +1040,9 @@
               </div>
               <div>
                 <label class="text-[10px] font-bold text-amber-900 dark:text-amber-300 block mb-0.5">施工期間 (開始 〜 完了)</label>
-                <div class="grid grid-cols-2 gap-1.5">
-                  <input type="date" id="detail-edit-cloth-start" onchange="onDetailDatesChange()" class="text-xs p-1.5 border border-amber-300 dark:border-amber-700 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-2xs font-medium">
-                  <input type="date" id="detail-edit-cloth-end" onchange="onDetailDatesChange()" class="text-xs p-1.5 border border-amber-300 dark:border-amber-700 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-2xs font-medium">
+                <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-1.5 w-full">
+                  <input type="date" id="detail-edit-cloth-start" onchange="onDetailDatesChange()" class="w-full min-w-0 text-[11px] sm:text-xs p-1.5 border border-amber-300 dark:border-amber-700 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-2xs font-medium">
+                  <input type="date" id="detail-edit-cloth-end" onchange="onDetailDatesChange()" class="w-full min-w-0 text-[11px] sm:text-xs p-1.5 border border-amber-300 dark:border-amber-700 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-2xs font-medium">
                 </div>
                 <div id="detail-cloth-work-dates-summary"></div>
               </div>
@@ -1055,9 +1061,9 @@
               </div>
               <div>
                 <label class="text-[10px] font-bold text-cyan-900 dark:text-cyan-300 block mb-0.5">施工期間 (開始 〜 完了)</label>
-                <div class="grid grid-cols-2 gap-1.5">
-                  <input type="date" id="detail-edit-cleaning-start" onchange="onDetailDatesChange()" class="text-xs p-1.5 border border-cyan-300 dark:border-cyan-700 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-2xs font-medium">
-                  <input type="date" id="detail-edit-cleaning-end" onchange="onDetailDatesChange()" class="text-xs p-1.5 border border-cyan-300 dark:border-cyan-700 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-2xs font-medium">
+                <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-1.5 w-full">
+                  <input type="date" id="detail-edit-cleaning-start" onchange="onDetailDatesChange()" class="w-full min-w-0 text-[11px] sm:text-xs p-1.5 border border-cyan-300 dark:border-cyan-700 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-2xs font-medium">
+                  <input type="date" id="detail-edit-cleaning-end" onchange="onDetailDatesChange()" class="w-full min-w-0 text-[11px] sm:text-xs p-1.5 border border-cyan-300 dark:border-cyan-700 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-2xs font-medium">
                 </div>
                 <div id="detail-cleaning-work-dates-summary"></div>
               </div>
@@ -1144,17 +1150,17 @@
         </div>
 
         <!-- フッターアクション -->
-        <div class="pt-3 border-t border-slate-200 flex items-center justify-between">
-          <button type="button" onclick="handleDeleteProject()" class="text-rose-600 hover:text-rose-700 text-xs font-bold flex items-center gap-1 p-2 rounded-lg hover:bg-rose-50 transition">
+        <div class="pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5">
+          <button type="button" onclick="handleDeleteProject()" class="text-rose-600 dark:text-rose-400 hover:text-rose-700 text-xs font-bold flex items-center justify-center sm:justify-start gap-1 p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition w-full sm:w-auto">
             <i data-lucide="trash-2" class="w-4 h-4"></i> この案件を削除
           </button>
-          <div class="flex gap-2">
-            <button type="button" onclick="openProjectOrderSheetModal(state.selectedProjectId)" class="bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 px-3.5 py-2 text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-2xs">
-              <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
-              <span>発注書出力</span>
+          <div class="grid grid-cols-3 sm:flex gap-2 w-full sm:w-auto">
+            <button type="button" onclick="openProjectOrderSheetModal(state.selectedProjectId)" class="bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 px-2 sm:px-3.5 py-2 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 shadow-2xs whitespace-nowrap">
+              <i data-lucide="file-text" class="w-3.5 h-3.5 shrink-0"></i>
+              <span>発注書</span>
             </button>
-            <button type="button" onclick="closeModal('modal-project-detail')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">閉じる</button>
-            <button type="button" onclick="saveProjectDetailChanges()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 text-xs font-bold rounded-xl shadow transition active:scale-95">変更を保存</button>
+            <button type="button" onclick="closeModal('modal-project-detail')" class="px-2 sm:px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl whitespace-nowrap">閉じる</button>
+            <button type="button" onclick="saveProjectDetailChanges()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 sm:px-5 py-2 text-xs font-bold rounded-xl shadow transition active:scale-95 whitespace-nowrap">変更を保存</button>
           </div>
         </div>
       </div>
@@ -3501,12 +3507,19 @@ function switchContractorCategory(cat) {
   const btnCloth = document.getElementById('cat-btn-cloth');
   const btnCleaning = document.getElementById('cat-btn-cleaning');
 
+  const badgeCloth = document.getElementById('badge-cloth-count');
+  const badgeCleaning = document.getElementById('badge-cleaning-count');
+
   if (isCloth) {
-    btnCloth.className = 'flex-1 sm:flex-none px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-400 shadow-sm whitespace-nowrap';
-    btnCleaning.className = 'flex-1 sm:flex-none px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white whitespace-nowrap';
+    btnCloth.className = 'px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-black flex items-center justify-center gap-1.5 transition-all bg-amber-500 text-white shadow-md ring-2 ring-amber-300 dark:ring-amber-400 whitespace-nowrap';
+    btnCleaning.className = 'px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-800 opacity-75 whitespace-nowrap';
+    if (badgeCloth) badgeCloth.className = 'bg-white/25 text-white text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full font-bold';
+    if (badgeCleaning) badgeCleaning.className = 'bg-slate-300/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full font-bold';
   } else {
-    btnCloth.className = 'flex-1 sm:flex-none px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white whitespace-nowrap';
-    btnCleaning.className = 'flex-1 sm:flex-none px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all bg-white dark:bg-slate-800 text-cyan-700 dark:text-cyan-400 shadow-sm whitespace-nowrap';
+    btnCloth.className = 'px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-800 opacity-75 whitespace-nowrap';
+    btnCleaning.className = 'px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-black flex items-center justify-center gap-1.5 transition-all bg-cyan-600 text-white shadow-md ring-2 ring-cyan-300 dark:ring-cyan-400 whitespace-nowrap';
+    if (badgeCloth) badgeCloth.className = 'bg-slate-300/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full font-bold';
+    if (badgeCleaning) badgeCleaning.className = 'bg-white/25 text-white text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full font-bold';
   }
 
   renderContractors();
@@ -4084,17 +4097,21 @@ function switchDetailTimelineCategory(cat) {
 
   if (cat === 'cloth') {
     if (btnCloth) {
-      btnCloth.className = 'px-2.5 py-1 rounded-md font-bold transition text-xs bg-white dark:bg-slate-700 text-amber-900 dark:text-amber-200 shadow-2xs';
+      btnCloth.className = 'px-2.5 py-1.5 rounded-lg font-black transition text-xs bg-amber-500 text-white shadow-md ring-2 ring-amber-300 dark:ring-amber-400 flex items-center justify-center gap-1 whitespace-nowrap';
+      btnCloth.innerHTML = '<span>✓</span><span>🧱</span><span>クロス業者</span>';
     }
     if (btnCleaning) {
-      btnCleaning.className = 'px-2.5 py-1 rounded-md font-bold transition text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+      btnCleaning.className = 'px-2.5 py-1.5 rounded-lg font-semibold transition text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-300/50 dark:hover:bg-slate-800 flex items-center justify-center gap-1 opacity-75 whitespace-nowrap';
+      btnCleaning.innerHTML = '<span>🧹</span><span>クリーニング業者</span>';
     }
   } else {
     if (btnCloth) {
-      btnCloth.className = 'px-2.5 py-1 rounded-md font-bold transition text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+      btnCloth.className = 'px-2.5 py-1.5 rounded-lg font-semibold transition text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-300/50 dark:hover:bg-slate-800 flex items-center justify-center gap-1 opacity-75 whitespace-nowrap';
+      btnCloth.innerHTML = '<span>🧱</span><span>クロス業者</span>';
     }
     if (btnCleaning) {
-      btnCleaning.className = 'px-2.5 py-1 rounded-md font-bold transition text-xs bg-white dark:bg-slate-700 text-cyan-900 dark:text-cyan-200 shadow-2xs';
+      btnCleaning.className = 'px-2.5 py-1.5 rounded-lg font-black transition text-xs bg-cyan-600 text-white shadow-md ring-2 ring-cyan-300 dark:ring-cyan-400 flex items-center justify-center gap-1 whitespace-nowrap';
+      btnCleaning.innerHTML = '<span>✓</span><span>🧹</span><span>クリーニング業者</span>';
     }
   }
   renderDetailContractorTimeline();
@@ -4411,6 +4428,23 @@ function onDetailDatesChange() {
   const currentProject = state.projects.find(x => x.id === state.selectedProjectId);
   if (!currentProject) return;
   ensureProjectAssignments(currentProject);
+
+  // 工期開始日・納期の反映と逆転補正
+  const startInp = document.getElementById('detail-edit-start-date');
+  const dueInp = document.getElementById('detail-edit-due-date');
+  if (startInp && startInp.value) {
+    currentProject.startDate = startInp.value;
+  }
+  if (dueInp && dueInp.value) {
+    if (currentProject.startDate && dueInp.value < currentProject.startDate) {
+      dueInp.value = currentProject.startDate;
+    }
+    currentProject.dueDate = dueInp.value;
+  }
+  const subtitleEl = document.getElementById('detail-subtitle');
+  if (subtitleEl) {
+    subtitleEl.textContent = `工期: ${formatDate(currentProject.startDate)} 〜 ${formatDate(currentProject.dueDate)} | 納期まで`;
+  }
 
   const clothSel = document.getElementById('detail-edit-cloth-contractor');
   if (clothSel && clothSel.value !== '__multiple__') {
@@ -4792,6 +4826,18 @@ function openProjectDetail(projectId) {
   if (!p) return;
   ensureProjectAssignments(p);
 
+  // 日付逆転の自動補正（開始日 > 終了日 の防止）
+  if (p.startDate && p.dueDate && p.dueDate < p.startDate) {
+    p.dueDate = p.startDate;
+  }
+  if (Array.isArray(p.workItems)) {
+    p.workItems.forEach(wi => {
+      if (wi.workStartDate && wi.workEndDate && wi.workEndDate < wi.workStartDate) {
+        wi.workEndDate = wi.workStartDate;
+      }
+    });
+  }
+
   // タイトル・ヘッダー
   document.getElementById('detail-title').textContent = p.name;
   document.getElementById('detail-subtitle').textContent = `工期: ${formatDate(p.startDate)} 〜 ${formatDate(p.dueDate)} | 納期まで`;
@@ -4825,7 +4871,7 @@ function openProjectDetail(projectId) {
       btnAll.className = 'px-2 py-1 rounded-md font-bold transition text-[10.5px] bg-white dark:bg-slate-700 text-indigo-800 dark:text-indigo-200 shadow-2xs flex items-center gap-1';
     }
   }
-  renderDetailContractorTimeline();
+  switchDetailTimelineCategory(currentDetailTimelineCategory || 'cloth');
 
   // 未完了マーク＆チェックリスト描画
   renderDetailChecklist(p);
@@ -6871,46 +6917,36 @@ function renderProjectWorkItems(p) {
           </div>
         </div>
 
-        <!-- 中段: 数量入力 ＆ 担当業者指定 -->
-        <div class="grid grid-cols-2 gap-2 text-xs">
+        <!-- 中段: 数量入力 ＆ 担当業者指定 (スマホでは1列表示で切れずに操作可能) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
           <!-- 数量 -->
-          <div class="flex items-center gap-1 bg-slate-50 dark:bg-slate-900/40 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700/60">
+          <div class="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900/40 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700/60 min-w-0">
             <span class="text-[11px] text-slate-500 font-bold shrink-0">数量:</span>
             <input type="number" min="0" step="any" value="${wi.quantity || ''}" placeholder="0"
               onchange="onProjectWorkItemChange(${index}, 'quantity', this.value)"
-              class="w-full text-xs font-black py-1 px-1.5 text-right rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-1 focus:ring-amber-500 focus:outline-hidden">
-            <span class="text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 w-5">${detail.unit}</span>
+              class="flex-1 min-w-0 text-xs font-black py-1 px-2 text-right rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-1 focus:ring-amber-500 focus:outline-hidden">
+            <span class="text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 w-6 text-center">${detail.unit}</span>
           </div>
 
           <!-- 担当業者 -->
-          <div class="flex items-center gap-1 bg-slate-50 dark:bg-slate-900/40 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700/60 min-w-0">
+          <div class="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900/40 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700/60 min-w-0">
             <span class="text-[11px] text-slate-500 font-bold shrink-0">担当:</span>
             <select onchange="onProjectWorkItemChange(${index}, 'assignedContractorId', this.value)"
-              class="w-full text-xs font-bold py-1 px-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-1 focus:ring-amber-500 focus:outline-hidden truncate">
+              class="flex-1 min-w-0 text-xs font-bold py-1 px-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-1 focus:ring-amber-500 focus:outline-hidden">
               ${contractorOpts}
             </select>
           </div>
         </div>
 
-        <!-- 中段下: 作業日程 (単日・複数日工期対応 & クイック期間ボタン) -->
-        <div class="bg-indigo-50/50 dark:bg-slate-900/40 p-1.5 rounded-lg border border-indigo-100 dark:border-slate-700/60 space-y-1">
-          <div class="flex items-center justify-between gap-1 flex-wrap">
-            <div class="flex items-center gap-1 shrink-0">
-              <span class="text-[11px] text-indigo-700 dark:text-indigo-400 font-bold flex items-center gap-0.5">
-                <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
-                <span>作業日:</span>
-              </span>
-              <input type="date" value="${wi.workStartDate || ''}" 
-                onchange="onProjectWorkItemChange(${index}, 'workStartDate', this.value)"
-                class="text-xs font-bold py-0.5 px-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-1 focus:ring-indigo-500">
-              <span class="text-xs text-slate-400 font-bold">〜</span>
-              <input type="date" value="${wi.workEndDate || wi.workStartDate || ''}" 
-                onchange="onProjectWorkItemChange(${index}, 'workEndDate', this.value)"
-                class="text-xs font-bold py-0.5 px-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-1 focus:ring-indigo-500">
-            </div>
-
-            <!-- 日数バッジ ＆ クイック設定ボタン -->
-            <div class="flex items-center gap-1 shrink-0 ml-auto">
+        <!-- 中段下: 作業日程 (絶対にはみ出さない2段レスポンシブ構造) -->
+        <div class="bg-indigo-50/50 dark:bg-slate-900/40 p-2 rounded-lg border border-indigo-100 dark:border-slate-700/60 space-y-1.5">
+          <!-- 上段: ラベル + 日数バッジ ＆ クイック設定ボタン -->
+          <div class="flex items-center justify-between gap-1.5 flex-wrap">
+            <span class="text-[11px] text-indigo-700 dark:text-indigo-400 font-bold flex items-center gap-1 shrink-0">
+              <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+              <span>作業日程:</span>
+            </span>
+            <div class="flex items-center gap-1.5 shrink-0 ml-auto">
               ${(() => {
                 const range = getWorkItemDateRange(wi, p);
                 return range.daysCount > 1
@@ -6919,13 +6955,24 @@ function renderProjectWorkItems(p) {
               })()}
               <div class="inline-flex rounded-md shadow-2xs" role="group">
                 <button type="button" onclick="setWorkItemDaysQuick(${index}, 1)" title="1日作業（単日）に設定"
-                  class="px-1.5 py-0.5 text-[10px] font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-l-md hover:bg-slate-100 dark:hover:bg-slate-700">1日</button>
+                  class="px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-l-md hover:bg-slate-100 dark:hover:bg-slate-700">1日</button>
                 <button type="button" onclick="setWorkItemDaysQuick(${index}, 2)" title="2日間の複数日作業に設定"
-                  class="px-1.5 py-0.5 text-[10px] font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border-t border-b border-r border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700">2日</button>
+                  class="px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border-t border-b border-r border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700">2日</button>
                 <button type="button" onclick="setWorkItemDaysQuick(${index}, 3)" title="3日間の複数日作業に設定"
-                  class="px-1.5 py-0.5 text-[10px] font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border-t border-b border-r border-slate-300 dark:border-slate-600 rounded-r-md hover:bg-slate-100 dark:hover:bg-slate-700">3日</button>
+                  class="px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border-t border-b border-r border-slate-300 dark:border-slate-600 rounded-r-md hover:bg-slate-100 dark:hover:bg-slate-700">3日</button>
               </div>
             </div>
+          </div>
+
+          <!-- 下段: 2つの日付入力欄を均等配置 (絶対にはみ出さない) -->
+          <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 w-full">
+            <input type="date" value="${wi.workStartDate || ''}" 
+              onchange="onProjectWorkItemChange(${index}, 'workStartDate', this.value)"
+              class="w-full min-w-0 text-[11px] sm:text-xs font-bold py-1 px-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-1 focus:ring-indigo-500">
+            <span class="text-xs text-slate-400 font-bold shrink-0">〜</span>
+            <input type="date" value="${(wi.workEndDate && wi.workStartDate && wi.workEndDate >= wi.workStartDate) ? wi.workEndDate : (wi.workStartDate || '')}" 
+              onchange="onProjectWorkItemChange(${index}, 'workEndDate', this.value)"
+              class="w-full min-w-0 text-[11px] sm:text-xs font-bold py-1 px-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-1 focus:ring-indigo-500">
           </div>
         </div>
 
@@ -7366,7 +7413,7 @@ const SAMPLE_PDF_PROJECTS = {
     fileName: 'エスタート品川戸越Ⅱ_1101号.pdf',
     name: 'エスタート品川戸越Ⅱ 1101号室',
     address: '東京都品川区東中延1丁目3-4',
-    dueDate: '2026-11-25',
+    dueDate: '2026-11-30',
     keyInfo: 'AL：呼2056　ｼﾞｮｲﾅｰ：3690',
     client: '合同会社RePaint Pro-brex 東京支店 (担当: 津村)',
     materials: 'サンゲツ SP2600',
@@ -8091,17 +8138,17 @@ function renderPdfItemsTable() {
             <label class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">
               作業日程 (単日・複数日選択可)
             </label>
-            <div class="flex items-center gap-1.5">
+            <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 w-full">
               <input type="date" value="${it.workStartDate || ''}" onchange="updatePdfItemField(${idx}, 'workStartDate', this.value)"
-                class="flex-1 text-xs font-bold p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-              <span class="text-xs text-slate-400 font-bold">〜</span>
+                class="w-full min-w-0 text-[11px] sm:text-xs font-bold p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+              <span class="text-xs text-slate-400 font-bold shrink-0">〜</span>
               <input type="date" value="${it.workEndDate || it.workStartDate || ''}" onchange="updatePdfItemField(${idx}, 'workEndDate', this.value)"
-                class="flex-1 text-xs font-bold p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                class="w-full min-w-0 text-[11px] sm:text-xs font-bold p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
             </div>
           </div>
 
           <!-- 下段: 担当下請業者選択 & 下請支払額 -->
-          <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/70 dark:border-slate-700/70 items-center">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-200/70 dark:border-slate-700/70 items-center">
             <div>
               <label class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">
                 担当下請業者
@@ -8239,6 +8286,7 @@ function commitPdfProjectToJobs() {
   // 開始日は登録した日（本日）、最終日は依頼書にある納期
   const todayStr = formatDateToYMD(new Date());
   const startDateStr = (dueDate && dueDate < todayStr) ? dueDate : todayStr;
+  const safeDueDate = (dueDate && dueDate < startDateStr) ? startDateStr : dueDate;
 
   // 業者の抽出 (代表業者)
   const clothItem = currentPdfImportData.items.find(it => it.contractorType === 'cloth' && it.contractorId);
@@ -8258,12 +8306,14 @@ function commitPdfProjectToJobs() {
     let itemEnd = it.workEndDate || itemStart;
     if (!itemStart) {
       if (isClean) {
-        itemStart = dueDate;
-        itemEnd = dueDate;
+        itemStart = safeDueDate;
+        itemEnd = safeDueDate;
       } else {
         itemStart = startDateStr;
-        itemEnd = (dueDate && dueDate > startDateStr) ? dueDate : startDateStr;
+        itemEnd = (safeDueDate && safeDueDate > startDateStr) ? safeDueDate : startDateStr;
       }
+    } else if (itemEnd < itemStart) {
+      itemEnd = itemStart;
     }
 
     return {

@@ -9083,13 +9083,13 @@ function getCloudSyncConfig() {
     }
   } catch (e) {}
 
-  // Vercel上でホストされている場合は自身のオリジンをデフォルトAPI先として自動認識
+  // デフォルト本番クラウド同期API（Vercelサーバー）を自動接続
   const host = window.location.hostname || '';
-  const isVercel = host.includes('vercel.app') || host.includes('localhost');
+  const isLocalFile = window.location.protocol === 'file:';
   return {
-    apiBaseUrl: isVercel ? window.location.origin : '',
+    apiBaseUrl: (host.includes('vercel.app') ? window.location.origin : 'https://houseclean-hub.vercel.app'),
     syncPin: '',
-    enabled: isVercel
+    enabled: !isLocalFile
   };
 }
 

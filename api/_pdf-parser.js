@@ -1,4 +1,5 @@
 // Server-side High-Precision PDF Order Parser for HouseClean Hub (Node.js)
+const path = require('path');
 const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
 
 // Vercel/Serverless環境でのWorker解決エラーを防ぐためインプロセスWorkerを注入
@@ -8,6 +9,17 @@ try {
   }
 } catch (e) {
   console.warn('In-process pdfjsWorker preload skipped:', e.message);
+}
+
+// 日本語CIDフォント(CMap)および標準フォントパス解決
+let CMAP_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/';
+let STANDARD_FONT_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/standard_fonts/';
+try {
+  const pdfPkgDir = path.dirname(require.resolve('pdfjs-dist/package.json'));
+  CMAP_URL = path.join(pdfPkgDir, 'cmaps') + '/';
+  STANDARD_FONT_URL = path.join(pdfPkgDir, 'standard_fonts') + '/';
+} catch (e) {
+  console.warn('Using CDN fallback for CMAP:', e.message);
 }
 
 // 汎用アイテムIDマッピング（app.js と完全互換）
@@ -30,61 +42,69 @@ function resolveWorkItemId(desc, typeHint = '') {
 
 // 工事依頼書PDFバイナリ解析メイン
 async function parseOrderPdfBuffer(pdfBuffer, fileName = 'document.pdf', defaultTodayYMD = '') {
-  const typedArray = new Uint8Array(pdfBuffer);
-  const loadingTask = pdfjsLib.getDocument({
-    data: typedArray,
-    disableFontFace: true,
-    isEvalSupported: false,
-    useSystemFonts: false,
-    verbosity: 0
-  });
-
-  const pdf = await loadingTask.promise;
-  const numPages = pdf.numPages;
   const allItems = [];
   let fullTextLines = [];
 
-  for (let pNum = 1; pNum <= Math.min(numPages, 3); pNum++) {
-    const page = await pdf.getPage(pNum);
-    const textContent = await page.getTextContent();
-    const pageItems = [];
+  try {
+    const typedArray = new Uint8Array(pdfBuffer);
+    const loadingTask = pdfjsLib.getDocument({
+      data: typedArray,
+      cMapUrl: CMAP_URL,
+      cMapPacked: true,
+      standardFontDataUrl: STANDARD_FONT_URL,
+      disableFontFace: true,
+      isEvalSupported: false,
+      useSystemFonts: false,
+      verbosity: 0
+    });
 
-    for (const item of textContent.items) {
-      const txt = (item.str || '').trim();
-      if (!txt) continue;
-      const x = item.transform[4];
-      const y = item.transform[5];
-      const obj = { text: txt, x, y, width: item.width || 0, page: pNum };
-      allItems.push(obj);
-      pageItems.push(obj);
-    }
+    const pdf = await loadingTask.promise;
+    const numPages = pdf.numPages;
 
-    // Y座標でグルーピングしてテキスト行を再構築
-    const linesMap = {};
-    for (const it of pageItems) {
-      let matchedY = null;
-      for (const gy of Object.keys(linesMap)) {
-        if (Math.abs(parseFloat(gy) - it.y) <= 5) {
-          matchedY = gy;
-          break;
+    for (let pNum = 1; pNum <= Math.min(numPages, 3); pNum++) {
+      const page = await pdf.getPage(pNum);
+      const textContent = await page.getTextContent();
+      const pageItems = [];
+
+      for (const item of textContent.items) {
+        const txt = (item.str || '').trim();
+        if (!txt) continue;
+        const x = item.transform[4];
+        const y = item.transform[5];
+        const obj = { text: txt, x, y, width: item.width || 0, page: pNum };
+        allItems.push(obj);
+        pageItems.push(obj);
+      }
+
+      // Y座標でグルーピングしてテキスト行を再構築
+      const linesMap = {};
+      for (const it of pageItems) {
+        let matchedY = null;
+        for (const gy of Object.keys(linesMap)) {
+          if (Math.abs(parseFloat(gy) - it.y) <= 5) {
+            matchedY = gy;
+            break;
+          }
         }
+        if (!matchedY) {
+          matchedY = String(it.y);
+          linesMap[matchedY] = [];
+        }
+        linesMap[matchedY].push(it);
       }
-      if (!matchedY) {
-        matchedY = String(it.y);
-        linesMap[matchedY] = [];
+      const sortedYs = Object.keys(linesMap).sort((a, b) => parseFloat(b) - parseFloat(a));
+      for (const gy of sortedYs) {
+        const grp = linesMap[gy].sort((a, b) => a.x - b.x);
+        fullTextLines.push({
+          y: parseFloat(gy),
+          page: pNum,
+          items: grp,
+          text: grp.map(i => i.text).join(' ')
+        });
       }
-      linesMap[matchedY].push(it);
     }
-    const sortedYs = Object.keys(linesMap).sort((a, b) => parseFloat(b) - parseFloat(a));
-    for (const gy of sortedYs) {
-      const grp = linesMap[gy].sort((a, b) => a.x - b.x);
-      fullTextLines.push({
-        y: parseFloat(gy),
-        page: pNum,
-        items: grp,
-        text: grp.map(i => i.text).join(' ')
-      });
-    }
+  } catch (pdfErr) {
+    console.warn('PDF parse warning (falling back to filename extraction):', pdfErr.message);
   }
 
   const page1Items = allItems.filter(i => i.page === 1);
@@ -159,7 +179,6 @@ async function parseOrderPdfBuffer(pdfBuffer, fileName = 'document.pdf', default
     }
   }
   if (!dueDate && defaultTodayYMD) {
-    // 見つからない場合は登録日の5日後を仮納期に
     const d = new Date(defaultTodayYMD);
     d.setDate(d.getDate() + 5);
     dueDate = d.toISOString().slice(0, 10);
@@ -183,7 +202,6 @@ async function parseOrderPdfBuffer(pdfBuffer, fileName = 'document.pdf', default
 
   for (const line of fullTextLines) {
     if (/(クロス|壁紙|貼替|アクセント|クリーニング|清掃|美装|エアコン|CF|クッションフロア|巾木|フロア|網戸|補修|洗浄)/.test(line.text)) {
-      // 見出し行を除外
       if (/(品名|施工内容|単価|小計|消費税|合計金額)/.test(line.text) && !/(クロス|クリーニング|エアコン)/.test(line.items[0]?.text || '')) {
         continue;
       }
@@ -203,7 +221,6 @@ async function parseOrderPdfBuffer(pdfBuffer, fileName = 'document.pdf', default
           const val = parseInt(it.text.replace(/[^0-9]/g, ''), 10) || 0;
           if (val >= 500) amount = val;
         } else if (!/^\d{1,2}$/.test(it.text) || it.x > 80) {
-          // 行番号以外を品名パーツとして収集
           descParts.push(it.text);
         }
       }
@@ -223,7 +240,7 @@ async function parseOrderPdfBuffer(pdfBuffer, fileName = 'document.pdf', default
         itemId: itemId,
         itemName: desc,
         category: category,
-        contractorId: '', // デフォルト未選択
+        contractorId: '',
         assignedContractorId: '',
         quantity: qty,
         unit: unit,
